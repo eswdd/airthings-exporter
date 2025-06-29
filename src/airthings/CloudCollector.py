@@ -112,6 +112,6 @@ class CloudCollector(Collector):
             raise Exception(f"Failed to get access token: {json}")
         
         # Store the access token and its expiry time
-        self.access_token = jsoqn['access_token']
+        self.access_token = json['access_token']
         # Set the expiry time to 60 seconds before the actual expiry to allow for clock skew/lag
         self.access_token_expiry = time.time() + json.get('expires_in', 10800) - 60
