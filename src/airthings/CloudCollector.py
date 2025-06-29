@@ -77,7 +77,7 @@ class CloudCollector(Collector):
         if self.rate_limit_reset > time.time():
             wait_time = self.rate_limit_reset - time.time()
             print(f"Rate limit exceeded for device {device_id}. Waiting {wait_time} secs until reset at {self.rate_limit_reset}.")
-            #return None
+            return None
 
         self.data_requests_counter.labels(device_id=device_id).inc()
         headers = {'Authorization': f'Bearer {self.access_token}'}
@@ -88,16 +88,15 @@ class CloudCollector(Collector):
         if 'data' in json:
             return json['data']
         
-        print(f"Response for device {device_id} did not contain 'data': {json}\n'headers': {response.headers}")
         if 'error' in json:
             self.data_requests_error_counter.labels(device_id=device_id, error=json['error']).inc()
             if json['error'] == 'INVALID_REQUEST_CLIENTS_LIMIT_EXCEEDED':
                 # 'headers': {'Content-Type': 'application/json', 'Content-Length': '117', 'Connection': 'keep-alive', 'Date': 'Sun, 29 Jun 2025 21:34:13 GMT', 'X-Request-ID': 'c153dbdd-d12a-4335-87ae-777dc093889e', 'X-RateLimit-Limit': '120', 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1751236440', 'X-RateLimit-Retry-After': '0', 'Cache-Control': 'max-age=30', 'X-Cache': 'Error from cloudfront', 'Via': '1.1 ad6a59dd9fdc1afb57f7131fcd96bf20.cloudfront.net (CloudFront)', 'X-Amz-Cf-Pop': 'LHR50-P3', 'X-Amz-Cf-Id': 'wHl83J5zGSu9jiF4AcQLCfXvBVO3e3qDmZyf7mTQArC-uwjfaOh0fA==', 'X-XSS-Protection': '1; mode=block', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'X-Content-Type-Options': 'nosniff', 'Strict-Transport-Security': 'max-age=31536000', 'Vary': 'Origin'}
-
                 print(f"Rate limit exceeded for device {device_id}.")
                 self.rate_limit_reset = int(response.headers['X-RateLimit-Reset'])
                 return None
-        #print(f"Response for device {device_id} did not contain 'data': {json}")
+            
+        print(f"Response for device {device_id} did not contain 'data': {json}\n'headers': {response.headers}")
         return None
 
     def __get_access_token__(self):
