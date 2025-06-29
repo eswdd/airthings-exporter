@@ -4,18 +4,19 @@ from prometheus_client.registry import Collector
 from prometheus_client import Counter
 
 
+
 class CloudCollector(Collector):
     def __init__(self, client_id, client_secret, device_id_list):
         self.client_id = client_id
         self.client_secret = client_secret
         self.device_id_list = device_id_list
         self.requests_counter = Counter(
-            'airthings_requests_total',
+            'airthings_api_requests',
             'Total number of requests made to Airthings API',
             ['device_id']
         )
         self.requests_error_counter = Counter(
-            'airthings_request_errors_total',
+            'airthings_api_requests_errors',
             'Total number of requests made to Airthings API that resulted in an error',
             ['device_id','error']
         )

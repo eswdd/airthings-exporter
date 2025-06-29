@@ -1,6 +1,6 @@
 import argparse
 import time
-from prometheus_client import start_http_server, REGISTRY
+from prometheus_client import disable_created_metrics, start_http_server, REGISTRY
 from airthings.CloudCollector import CloudCollector
 
 parser = argparse.ArgumentParser(
@@ -12,6 +12,8 @@ parser.add_argument('--device-id', action='append')
 parser.add_argument('--port', type=int, default=8000, help='Port to listen on (default: 8000)')
 args = parser.parse_args()
 
+# Don't create _created metrics automatically, they're not useful
+disable_created_metrics()
 REGISTRY.register(CloudCollector(args.client_id, args.client_secret, args.device_id))
 
 
