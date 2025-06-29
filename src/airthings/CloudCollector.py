@@ -81,12 +81,13 @@ class CloudCollector(Collector):
         json = response.json()
         if 'data' in json:
             return json['data']
+        print(f"Response for device {device_id} did not contain 'data': {json}")
         if 'error' in json:
             self.data_requests_error_counter.labels(device_id=device_id, error=json['error']).inc()
             if json['error'] == 'INVALID_REQUEST_CLIENTS_LIMIT_EXCEEDED':
                 print(f"Rate limit exceeded for device {device_id}.")
                 return None
-        print(f"Response for device {device_id} did not contain 'data': {json}")
+        #print(f"Response for device {device_id} did not contain 'data': {json}")
         return None
 
     def __get_access_token__(self):
@@ -111,6 +112,6 @@ class CloudCollector(Collector):
             raise Exception(f"Failed to get access token: {json}")
         
         # Store the access token and its expiry time
-        self.access_token = json['access_token']
+        self.access_token = jsoqn['access_token']
         # Set the expiry time to 60 seconds before the actual expiry to allow for clock skew/lag
         self.access_token_expiry = time.time() + json.get('expires_in', 10800) - 60
