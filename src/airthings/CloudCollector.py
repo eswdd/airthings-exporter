@@ -82,7 +82,7 @@ class CloudCollector(Collector):
         if 'data' in json:
             return json['data']
         if 'error' in json:
-            self.requests_error_counter.labels(device_id=device_id, error=json['error']).inc()
+            self.data_requests_error_counter.labels(device_id=device_id, error=json['error']).inc()
             if json['error'] == 'INVALID_REQUEST_CLIENTS_LIMIT_EXCEEDED':
                 print(f"Rate limit exceeded for device {device_id}.")
                 return None
