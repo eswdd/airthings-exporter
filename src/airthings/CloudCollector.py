@@ -11,9 +11,19 @@ class CloudCollector(Collector):
 
     def collect(self):
         gauge_metric_family = GaugeMetricFamily('airthings_gauge', 'Airthings sensor values')
+        requests_counter = prometheus_client.Counter(
+            'airthings_requests_total',
+            'Total number of requests made to Airthings API',
+            ['device_id']
+        )
+        requests_error_counter = prometheus_client.Counter(
+            'airthings_request_errors_total',
+            'Total number of requests made to Airthings API that resulted in an error',
+            ['device_id','error']
+        )
         access_token = self.__get_access_token__()
         for device_id in self.device_id_list:
-            data = self.__get_cloud_data__(access_token, device_id)
+            data = self.__get_cloud_data__(access_token, device_id, requests_counter, requests_error_counter)
             if data is None:
                 continue
             self.__add_samples__(gauge_metric_family, data, device_id)
@@ -48,7 +58,8 @@ class CloudCollector(Collector):
         if 'voc' in data:
             gauge_metric_family.add_sample('airthings_voc_parts_per_billion', value=data['voc'], labels=labels)
 
-    def __get_cloud_data__(self, access_token, device_id):
+    def __get_cloud_data__(self, access_token, device_id, requests_counter, requests_error_counter):
+        requests_counter.labels(device_id=device_id).inc()
         headers = {'Authorization': f'Bearer {access_token}'}
         response = requests.get(
             f'https://ext-api.airthings.com/v1/devices/{device_id}/latest-samples',
@@ -56,7 +67,11 @@ class CloudCollector(Collector):
         json = response.json()
         if 'data' in json:
             return json['data']
-        
+        if 'error' in json:
+            requests_error_counter.labels(device_id=device_id, error=json['error']).inc()
+            if json['error'] == 'INVALID_REQUEST_CLIENTS_LIMIT_EXCEEDED':
+                print(f"Rate limit exceeded for device {device_id}.")
+                return None
         print(f"Response for device {device_id} did not contain 'data': {json}")
         return None
 
@@ -70,4 +85,7 @@ class CloudCollector(Collector):
         token_response = requests.post(
             'https://accounts-api.airthings.com/v1/token',
             data=data)
-        return token_response.json()['access_token']
+        json = token_response.json()
+        if 'access_token' not in json:
+            raise Exception(f"Failed to get access token: {json}")
+        return json['access_token']
