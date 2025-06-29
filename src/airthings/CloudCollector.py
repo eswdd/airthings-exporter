@@ -1,6 +1,7 @@
 import requests as requests
 from prometheus_client.metrics_core import GaugeMetricFamily
 from prometheus_client.registry import Collector
+from prometheus_client import Counter
 
 
 class CloudCollector(Collector):
@@ -11,12 +12,12 @@ class CloudCollector(Collector):
 
     def collect(self):
         gauge_metric_family = GaugeMetricFamily('airthings_gauge', 'Airthings sensor values')
-        requests_counter = prometheus_client.Counter(
+        requests_counter = Counter(
             'airthings_requests_total',
             'Total number of requests made to Airthings API',
             ['device_id']
         )
-        requests_error_counter = prometheus_client.Counter(
+        requests_error_counter = Counter(
             'airthings_request_errors_total',
             'Total number of requests made to Airthings API that resulted in an error',
             ['device_id','error']
