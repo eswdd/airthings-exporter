@@ -2,7 +2,7 @@ import requests as requests
 import time
 from prometheus_client.metrics_core import GaugeMetricFamily
 from prometheus_client.registry import Collector
-from prometheus_client import Counter
+from prometheus_client import Counter, Gauge
 
 
 
@@ -11,6 +11,10 @@ class CloudCollector(Collector):
         self.client_id = client_id
         self.client_secret = client_secret
         self.device_id_list = device_id_list
+        self.rate_limit_remaining = Gauge(
+            'airthings_api_rate_limit_remaining',
+            'Number of requests remaining in the Airthings API rate limit'
+        )
         self.data_requests_counter = Counter(
             'airthings_api_data_requests',
             'Total number of requests made to Airthings API',
@@ -84,6 +88,10 @@ class CloudCollector(Collector):
         response = requests.get(
             f'https://ext-api.airthings.com/v1/devices/{device_id}/latest-samples',
             headers=headers)
+        
+        rate_limit_remaining = int(response.headers.get('X-RateLimit-Remaining', '0'))
+        self.rate_limit_remaining.set(rate_limit_remaining)
+        
         json = response.json()
         if 'data' in json:
             return json['data']
