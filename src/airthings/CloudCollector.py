@@ -88,6 +88,7 @@ class CloudCollector(Collector):
             'https://accounts-api.airthings.com/v1/token',
             data=data)
         json = token_response.json()
+        print(f"Response from token endpoint: {json}")
         if 'access_token' not in json:
             raise Exception(f"Failed to get access token: {json}")
         return json['access_token']
