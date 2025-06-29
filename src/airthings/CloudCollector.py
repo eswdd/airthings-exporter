@@ -32,6 +32,7 @@ class CloudCollector(Collector):
         )
         self.access_token = None
         self.access_token_expiry = None
+        self.rate_limit_reset = 0
 
     def collect(self):
         gauge_metric_family = GaugeMetricFamily('airthings_gauge', 'Airthings sensor values')
@@ -73,6 +74,11 @@ class CloudCollector(Collector):
             gauge_metric_family.add_sample('airthings_voc_parts_per_billion', value=data['voc'], labels=labels)
 
     def __get_cloud_data__(self, device_id):
+        if self.rate_limit_reset > time.time():
+            wait_time = self.rate_limit_reset - time.time()
+            print(f"Rate limit exceeded for device {device_id}. Waiting {wait_time} secs until reset at {self.rate_limit_reset}.")
+            return None
+
         self.data_requests_counter.labels(device_id=device_id).inc()
         headers = {'Authorization': f'Bearer {self.access_token}'}
         response = requests.get(
@@ -87,6 +93,7 @@ class CloudCollector(Collector):
             self.data_requests_error_counter.labels(device_id=device_id, error=json['error']).inc()
             if json['error'] == 'INVALID_REQUEST_CLIENTS_LIMIT_EXCEEDED':
                 print(f"Rate limit exceeded for device {device_id}.")
+                self.rate_limit_reset = int(response.headers['X-RateLimit-Reset'])
                 return None
         #print(f"Response for device {device_id} did not contain 'data': {json}")
         return None
