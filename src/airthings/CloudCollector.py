@@ -81,7 +81,8 @@ class CloudCollector(Collector):
         json = response.json()
         if 'data' in json:
             return json['data']
-        print(f"Response for device {device_id} did not contain 'data': {json}")
+        
+        print(f"Response for device {device_id} did not contain 'data': {json}\n'headers': {response.headers}")
         if 'error' in json:
             self.data_requests_error_counter.labels(device_id=device_id, error=json['error']).inc()
             if json['error'] == 'INVALID_REQUEST_CLIENTS_LIMIT_EXCEEDED':
