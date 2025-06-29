@@ -1,4 +1,5 @@
 import requests as requests
+import time
 from prometheus_client.metrics_core import GaugeMetricFamily
 from prometheus_client.registry import Collector
 from prometheus_client import Counter
@@ -10,22 +11,33 @@ class CloudCollector(Collector):
         self.client_id = client_id
         self.client_secret = client_secret
         self.device_id_list = device_id_list
-        self.requests_counter = Counter(
-            'airthings_api_requests',
+        self.data_requests_counter = Counter(
+            'airthings_api_data_requests',
             'Total number of requests made to Airthings API',
             ['device_id']
         )
-        self.requests_error_counter = Counter(
-            'airthings_api_requests_errors',
+        self.data_requests_error_counter = Counter(
+            'airthings_api_data_requests_errors',
             'Total number of requests made to Airthings API that resulted in an error',
             ['device_id','error']
         )
+        self.token_requests_counter = Counter(
+            'airthings_api_token_requests',
+            'Total number of requests made to Airthings API'
+        )
+        self.token_requests_error_counter = Counter(
+            'airthings_api_token_requests_errors',
+            'Total number of requests made to Airthings API that resulted in an error',
+            ['error']
+        )
+        self.access_token = None
+        self.access_token_expiry = None
 
     def collect(self):
         gauge_metric_family = GaugeMetricFamily('airthings_gauge', 'Airthings sensor values')
-        access_token = self.__get_access_token__()
+        self.__get_access_token__()
         for device_id in self.device_id_list:
-            data = self.__get_cloud_data__(access_token, device_id)
+            data = self.__get_cloud_data__(device_id)
             if data is None:
                 continue
             self.__add_samples__(gauge_metric_family, data, device_id)
@@ -60,9 +72,9 @@ class CloudCollector(Collector):
         if 'voc' in data:
             gauge_metric_family.add_sample('airthings_voc_parts_per_billion', value=data['voc'], labels=labels)
 
-    def __get_cloud_data__(self, access_token, device_id):
-        self.requests_counter.labels(device_id=device_id).inc()
-        headers = {'Authorization': f'Bearer {access_token}'}
+    def __get_cloud_data__(self, device_id):
+        self.data_requests_counter.labels(device_id=device_id).inc()
+        headers = {'Authorization': f'Bearer {self.access_token}'}
         response = requests.get(
             f'https://ext-api.airthings.com/v1/devices/{device_id}/latest-samples',
             headers=headers)
@@ -78,6 +90,10 @@ class CloudCollector(Collector):
         return None
 
     def __get_access_token__(self):
+        if self.access_token is not None and self.access_token_expiry is not None and self.access_token_expiry > time.time():
+            return
+
+        self.token_requests_counter.inc()
         data = {
             "grant_type": "client_credentials",
             "client_id": self.client_id,
@@ -88,7 +104,13 @@ class CloudCollector(Collector):
             'https://accounts-api.airthings.com/v1/token',
             data=data)
         json = token_response.json()
-        print(f"Response from token endpoint: {json}")
+        #print(f"Response from token endpoint: {json}")
+        if 'error' in json:
+            self.token_requests_error_counter.labels(error=json['error']).inc()
         if 'access_token' not in json:
             raise Exception(f"Failed to get access token: {json}")
-        return json['access_token']
+        
+        # Store the access token and its expiry time
+        self.access_token = json['access_token']
+        # Set the expiry time to 60 seconds before the actual expiry to allow for clock skew/lag
+        self.access_token_expiry = time.time() + json.get('expires_in', 10800) - 60
