@@ -14,6 +14,8 @@ class CloudCollector(Collector):
         access_token = self.__get_access_token__()
         for device_id in self.device_id_list:
             data = self.__get_cloud_data__(access_token, device_id)
+            if data is None:
+                continue
             self.__add_samples__(gauge_metric_family, data, device_id)
         yield gauge_metric_family
 
@@ -51,8 +53,12 @@ class CloudCollector(Collector):
         response = requests.get(
             f'https://ext-api.airthings.com/v1/devices/{device_id}/latest-samples',
             headers=headers)
-        data = response.json()['data']
-        return data
+        json = response.json()
+        if 'data' in json:
+            return json['data']
+        
+        print(f"Response for device {device_id} did not contain 'data': {json}")
+        return None
 
     def __get_access_token__(self):
         data = {
