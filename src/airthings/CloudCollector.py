@@ -15,9 +15,13 @@ class CloudCollector(Collector):
             'airthings_api_rate_limit_remaining',
             'Number of requests remaining in the Airthings API rate limit'
         )
-        self.rate_limit_resets = Gauge(
+        self.rate_limit_reset_time = Gauge(
             'airthings_api_rate_limit_reset_time',
             'Time when the Airthings API rate limit will reset (in seconds since epoch)'
+        )
+        self.rate_limit_reset_secs = Gauge(
+            'airthings_api_rate_limit_reset_seconds',
+            'Amount of time until the Airthings API rate limit will reset (in seconds)'
         )
         self.data_requests_counter = Counter(
             'airthings_api_data_requests',
@@ -96,10 +100,11 @@ class CloudCollector(Collector):
         rate_limit_remaining = int(response.headers.get('X-RateLimit-Remaining', '0'))
         self.rate_limit_remaining.set(rate_limit_remaining)
 
-        json = response.json()
-
         rate_limit_reset_value = int(response.headers['X-RateLimit-Reset'])
-        self.rate_limit_resets.set(rate_limit_reset_value)
+        self.rate_limit_reset_time.set(rate_limit_reset_value)
+        self.rate_limit_reset_secs.set(rate_limit_reset_value-time.time())
+
+        json = response.json()
 
         if 'data' in json:
             return json['data']
