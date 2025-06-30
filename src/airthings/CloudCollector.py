@@ -98,8 +98,8 @@ class CloudCollector(Collector):
 
         json = response.json()
 
-        self.rate_limit_reset = int(response.headers['X-RateLimit-Reset'])
-        self.rate_limit_resets.set(self.rate_limit_reset)
+        rate_limit_reset_value = int(response.headers['X-RateLimit-Reset'])
+        self.rate_limit_resets.set(rate_limit_reset_value)
 
         if 'data' in json:
             return json['data']
@@ -109,6 +109,7 @@ class CloudCollector(Collector):
             if json['error'] == 'INVALID_REQUEST_CLIENTS_LIMIT_EXCEEDED':
                 # 'headers': {'Content-Type': 'application/json', 'Content-Length': '117', 'Connection': 'keep-alive', 'Date': 'Sun, 29 Jun 2025 21:34:13 GMT', 'X-Request-ID': 'c153dbdd-d12a-4335-87ae-777dc093889e', 'X-RateLimit-Limit': '120', 'X-RateLimit-Remaining': '0', 'X-RateLimit-Reset': '1751236440', 'X-RateLimit-Retry-After': '0', 'Cache-Control': 'max-age=30', 'X-Cache': 'Error from cloudfront', 'Via': '1.1 ad6a59dd9fdc1afb57f7131fcd96bf20.cloudfront.net (CloudFront)', 'X-Amz-Cf-Pop': 'LHR50-P3', 'X-Amz-Cf-Id': 'wHl83J5zGSu9jiF4AcQLCfXvBVO3e3qDmZyf7mTQArC-uwjfaOh0fA==', 'X-XSS-Protection': '1; mode=block', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'X-Content-Type-Options': 'nosniff', 'Strict-Transport-Security': 'max-age=31536000', 'Vary': 'Origin'}
                 print(f"Rate limit exceeded for device {device_id}.")
+                self.rate_limit_reset = rate_limit_reset_value
                 return None
             
         print(f"Response for device {device_id} did not contain 'data': {json}\n'headers': {response.headers}")
